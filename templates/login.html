@@ -8,9 +8,9 @@
   </head>
   <body>
     <h1>Login</h1>
-    <form action="/login" method="post">
-      <label for="username">Username:</label>
-      <input type="text" id="username" name="username">
+    <form action="{{ url_for ('login') }}" method="POST">
+      <label for="email">Email:</label>
+      <input type="text" id="email" name="email" value="{{ form.email.data}}">
       <br>
       <label for="password">Password:</label>
       <input type="password" id="password" name="password">
@@ -20,6 +20,7 @@
       <input type="radio" id="client" name="role" value="client">
       <label for="client">Client</label>
       <br><br>
+      {{ form.hidden_tag() }}
       <input type="submit" value="Login"><br>
     </form>
     <a href="{{url_for('home')}}">Dont have an account?</a>
