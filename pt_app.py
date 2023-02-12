@@ -1,4 +1,4 @@
-from flask import Flask, render_template, url_for, redirect
+from flask import Flask, render_template, url_for, redirect, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from flask_wtf import FlaskForm
@@ -6,7 +6,8 @@ from wtforms import StringField, PasswordField, SubmitField
 from wtforms.validators import InputRequired, Length, ValidationError, Email
 import email_validator
 from flask_bcrypt import Bcrypt, check_password_hash
-from sqlalchemy import create_engine, Column, Integer, String, MetaData
+from sqlalchemy import create_engine, Column, Integer, String, MetaData, exc
+from sqlalchemy.exc import IntegrityError
 
 # Creating the Flask app
 app = Flask(__name__)
@@ -33,6 +34,7 @@ def validate_email(form, field):
 
 # Creating the client model
 class Client(db.Model, UserMixin):
+    # I will change code so that the ID is automatically created for each user
     client_id = db.Column(db.String(50), primary_key=True , nullable=False)
     first_name = db.Column(db.String(30), nullable = False)
     surname = db.Column(db.String(30), nullable = False)
@@ -80,6 +82,7 @@ with app.app_context():
 
 # Create client register form class
 class ClientRegisterForm(FlaskForm):
+    # I want the ID to be automated 
     client_id = StringField("Enter an ID number", validators=[InputRequired(), Length(max=50)])
     first_name = StringField("First Name", validators=[InputRequired(), Length(max=30)])
     surname = StringField("Surname", validators=[InputRequired(), Length(max=30)])
@@ -153,11 +156,19 @@ def client_signup():
     # Whenever the form is submitted a hashed version of the password is generated
     # Then create a new user and add them to database
     if form.validate_on_submit():
-        hashed_password = bcrypt.generate_password_hash(form.password.data)
-        client = Client(client_id=form.client_id.data, first_name=form.first_name.data, surname=form.surname.data, address=form.address.data, email=form.email.data, password=hashed_password)
-        db.session.add(client)
-        db.session.commit()
-        return redirect(url_for("login"))
+        try:
+            hashed_password = bcrypt.generate_password_hash(form.password.data)
+            client = Client(client_id=form.client_id.data, first_name=form.first_name.data, surname=form.surname.data, address=form.address.data, email=form.email.data, password=hashed_password)
+            db.session.add(client)
+            db.session.commit()
+            return redirect(url_for("login"))
+        except IntegrityError as e:
+            if "UNIQUE constraint failed" in str(e):
+                flash("A user with the same id number or email already exists.")
+            else:
+                app.logger.error(e)
+                flash("An error occurred while registering. Please try again later")
+            db.session.rollback()
 
     return render_template("client_signup.html", form=form)
 
@@ -167,11 +178,16 @@ def trainer_signup():
      # Whenever the form is submitted a hashed version of the password is generated
     # Then create a new user and add them to database
     if form.validate_on_submit():
-        hashed_password = bcrypt.generate_password_hash(form.password.data)
-        trainer = Trainer(trainer_id=form.trainer_id.data, first_name=form.first_name.data, surname=form.surname.data, address=form.address.data, email=form.email.data, password=hashed_password, specialization=form.specialization.data)
-        db.session.add(trainer)
-        db.session.commit()
-        return redirect(url_for('login'))
+        try:
+            hashed_password = bcrypt.generate_password_hash(form.password.data)
+            trainer = Trainer(trainer_id=form.trainer_id.data, first_name=form.first_name.data, surname=form.surname.data, address=form.address.data, email=form.email.data, password=hashed_password, specialization=form.specialization.data)
+            db.session.add(trainer)
+            db.session.commit()
+            return redirect(url_for('login'))
+        except IntegrityError as e:
+            if "UNIQUE constraint failed" in str(e):
+                flash("An error occurred while registering. Please try again later")
+            db.session.rollback()
 
     return render_template("trainer_signup.html", form=form)
 

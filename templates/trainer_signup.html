@@ -8,10 +8,26 @@
   </head>
   <body>
     <h1>Trainer Sign Up</h1>
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <ul class=flashes>
+      {% for message in messages %}
+        <li>{{ message }}</li>
+      {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
     <form action="{{url_for('trainer_signup')}}" method="POST">
       {{ form.hidden_tag() }}
       <div class="form-group">
         {{ form.trainer_id.label }} {{ form.trainer_id(class="form-control")}}
+        {% if form.trainer_id.errors %}
+        <ul class="errors">
+          {% for error in form.trainer.errors %}
+            <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
       </div>
       <div class="form-group">
         {{ form.first_name.label }} {{ form.first_name(class="form-control")}}
@@ -24,6 +40,13 @@
       </div>
       <div class="form-group">
         {{ form.email.label }} {{ form.email(class="form-control")}}
+        {% if form.email.errors %}
+        <ul class="errors">
+          {% for error in form.email.errors %}
+            <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
       </div>
       <div class="form-group">
         {{ form.password.label }} {{ form.password(class="form-control")}}
