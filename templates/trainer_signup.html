@@ -11,7 +11,7 @@
     <form action="{{url_for('trainer_signup')}}" method="POST">
       {{ form.hidden_tag() }}
       <div class="form-group">
-        {{ form.id.label }} {{ form.id(class="form-control")}}
+        {{ form.trainer_id.label }} {{ form.trainer_id(class="form-control")}}
       </div>
       <div class="form-group">
         {{ form.first_name.label }} {{ form.first_name(class="form-control")}}
