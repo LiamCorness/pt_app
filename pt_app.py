@@ -2,12 +2,14 @@ from flask import Flask, render_template, url_for, redirect, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField
+from wtforms import StringField, PasswordField, SubmitField, HiddenField
 from wtforms.validators import InputRequired, Length, ValidationError, Email
 import email_validator
 from flask_bcrypt import Bcrypt, check_password_hash
 from sqlalchemy import create_engine, Column, Integer, String, MetaData, exc
 from sqlalchemy.exc import IntegrityError
+import uuid
+
 
 # Creating the Flask app
 app = Flask(__name__)
@@ -35,21 +37,24 @@ def validate_email(form, field):
 # Creating the client model
 class Client(db.Model, UserMixin):
     # I will change code so that the ID is automatically created for each user
-    client_id = db.Column(db.String(50), primary_key=True , nullable=False)
+    client_id = db.Column(db.Integer(), primary_key=True , autoincrement=True)
     first_name = db.Column(db.String(30), nullable = False)
     surname = db.Column(db.String(30), nullable = False)
     address = db.Column(db.String(50), nullable = False)
     email = db.Column(db.String(30), nullable = False, unique=True)
     password = db.Column(db.String(80), nullable = False)
 
+    def __init__(self, first_name, surname, address, email, password):
+        self.first_name = first_name
+        self.surname = surname
+        self.address = address
+        self.email = email
+        self.password = password
+    
     def get_id(self):
         return (self.client_id)
-    
-client = Client()
-client_id = client.get_id
-        
-    
 
+        
 # Creating the trainer model
 class Trainer(db.Model, UserMixin):
     trainer_id = db.Column(db.String(50), primary_key=True, nullable=False)
@@ -68,8 +73,8 @@ trainer_id = trainer.get_id()
 
 # Creating the sessions model
 class Sessions(db.Model, UserMixin):
-    session_id = db.Column(db.Integer, primary_key=True)
-    client_id = db.Column(db.Integer, db.ForeignKey("client.id"), nullable=False)
+    session_id = db.Column(db.String, primary_key=True)
+    client_id = db.Column(db.String, db.ForeignKey("client.id"), nullable=False)
     date = db.Column(db.Date, nullable=False)
     time = db.Column(db.Time, nullable=False)
     location = db.Column(db.String(50), nullable=False)
@@ -83,7 +88,6 @@ with app.app_context():
 # Create client register form class
 class ClientRegisterForm(FlaskForm):
     # I want the ID to be automated 
-    client_id = StringField("Enter an ID number", validators=[InputRequired(), Length(max=50)])
     first_name = StringField("First Name", validators=[InputRequired(), Length(max=30)])
     surname = StringField("Surname", validators=[InputRequired(), Length(max=30)])
     address = StringField("Address", validators=[InputRequired(), Length(max=50)])
@@ -158,7 +162,8 @@ def client_signup():
     if form.validate_on_submit():
         try:
             hashed_password = bcrypt.generate_password_hash(form.password.data)
-            client = Client(client_id=form.client_id.data, first_name=form.first_name.data, surname=form.surname.data, address=form.address.data, email=form.email.data, password=hashed_password)
+            client = Client(first_name=form.first_name.data, surname=form.surname.data, address=form.address.data, email=form.email.data, password=hashed_password)
+            client_id = client.client_id
             db.session.add(client)
             db.session.commit()
             return redirect(url_for("login"))
