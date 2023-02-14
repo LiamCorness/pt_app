@@ -57,13 +57,21 @@ class Client(db.Model, UserMixin):
         
 # Creating the trainer model
 class Trainer(db.Model, UserMixin):
-    trainer_id = db.Column(db.String(50), primary_key=True, nullable=False)
+    trainer_id = db.Column(db.Integer(50), primary_key=True, autoincrement=True)
     first_name = db.Column(db.String(30), nullable=False)
     surname = db.Column(db.String(30), nullable=False)
     address = db.Column(db.String(50), nullable=False)
     email = db.Column(db.String(30), nullable=False, unique=True)
     password = db.Column(db.String(80), nullable =False)
     specialization = db.Column(db.String(50), nullable=True)
+
+    def __init__(self, first_name, surname, address, email, password, specialization):
+        self.first_name = first_name
+        self.surname = surname
+        self.address = address
+        self.email = email
+        self.password = password
+        self.specialization = specialization
 
     def get_id(self):
         return (self.trainer_id)
@@ -87,7 +95,6 @@ with app.app_context():
 
 # Create client register form class
 class ClientRegisterForm(FlaskForm):
-    # I want the ID to be automated 
     first_name = StringField("First Name", validators=[InputRequired(), Length(max=30)])
     surname = StringField("Surname", validators=[InputRequired(), Length(max=30)])
     address = StringField("Address", validators=[InputRequired(), Length(max=50)])
@@ -100,7 +107,6 @@ class ClientRegisterForm(FlaskForm):
 
 # Create trainer register form class
 class TrainerRegisterForm(FlaskForm):
-    trainer_id = StringField("Enter an ID number", validators=[InputRequired(), Length(max=50)])
     first_name = StringField("First Name", validators=[InputRequired(), Length(max=30)])
     surname = StringField("Surname", validators=[InputRequired(), Length(max=30)])
     address = StringField("Address", validators=[InputRequired(), Length(max=50)])
