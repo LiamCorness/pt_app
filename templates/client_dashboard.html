@@ -1,13 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Home</title>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name ="viewport" content="width=device-width", initial-scale=1>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Home</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
   </head>
   <body>
-    <h1>Hello you are logged in as a client</h1>
-    <a href="{{url_for('logout')}}"></a>
+    <h1>Hello, you are logged in as a client</h1>
+    <div class="sidebar">
+      <a href="/client_profile">
+        <div class="profile">
+          <h3>Profile</h3>
+        </div>
+      </a>
+      <a href="/trainer_list">
+        <div class="search">
+          <h3>Search for Trainers</h3>
+        </div>
+      </a>
+      <a href="/tools">
+        <div class="tools">
+          <h3>Tools</h3>
+        </div>
+      </a>
+      <a href="/chat">
+        <div class="chat">
+          <h3>Chat</h3>
+        </div>
+      </a>
+      <a href="/client_settings">
+        <div class="client_settings">
+          <h3>Settings</h3>
+        </div>
+      </a>
+        </div>
+
+      </a>
+    </div>
+    <a href="{{ url_for('logout') }}"></a>
   </body>
 </html>

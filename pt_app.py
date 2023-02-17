@@ -1,14 +1,12 @@
-from flask import Flask, render_template, url_for, redirect, flash
+from flask import Flask, render_template, url_for, redirect, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, HiddenField
+from wtforms import StringField, PasswordField, SubmitField
 from wtforms.validators import InputRequired, Length, ValidationError, Email
-import email_validator
 from flask_bcrypt import Bcrypt, check_password_hash
 from sqlalchemy import create_engine, Column, Integer, String, MetaData, exc
 from sqlalchemy.exc import IntegrityError
-import uuid
 
 
 # Creating the Flask app
@@ -57,7 +55,7 @@ class Client(db.Model, UserMixin):
         
 # Creating the trainer model
 class Trainer(db.Model, UserMixin):
-    trainer_id = db.Column(db.Integer(50), primary_key=True, autoincrement=True)
+    trainer_id = db.Column(db.Integer(), primary_key=True, autoincrement=True)
     first_name = db.Column(db.String(30), nullable=False)
     surname = db.Column(db.String(30), nullable=False)
     address = db.Column(db.String(50), nullable=False)
@@ -76,8 +74,6 @@ class Trainer(db.Model, UserMixin):
     def get_id(self):
         return (self.trainer_id)
 
-trainer = Trainer()
-trainer_id = trainer.get_id()
 
 # Creating the sessions model
 class Sessions(db.Model, UserMixin):
@@ -95,11 +91,24 @@ with app.app_context():
 
 # Create client register form class
 class ClientRegisterForm(FlaskForm):
+    def validate_password(form,field):
+        password=field.data
+        if len(password) < 8:
+            raise ValidationError("Password must be at least 8 character long.")
+        if not any(char.isdigit() for char in password):
+            raise ValidationError("Password must contain at least one number")
+        if not any(char in '!@#$%^&*()_-+=[{]}\|;:"<,>.?/' for char in password):
+            raise ValidationError("Password must contain at least one special character")
+        
+    def validate_confirm_password(self, confirm_password):
+        if self.password.data != self.confirm_password.data:
+            raise ValidationError('Passwords must match.')
+
     first_name = StringField("First Name", validators=[InputRequired(), Length(max=30)])
     surname = StringField("Surname", validators=[InputRequired(), Length(max=30)])
     address = StringField("Address", validators=[InputRequired(), Length(max=50)])
     email = StringField("Email", validators=[InputRequired(), Email(), Length(max=30)])
-    password = PasswordField("Password", validators=[InputRequired(), Length(min=4, max=20)])
+    password = PasswordField("Password", validators=[InputRequired(), Length(min=4, max=20), validate_password, validate_confirm_password])
     confirm_password = PasswordField("Confirm Password", validators=[InputRequired(), Length(min=4, max=20)])
 
     # Submit button
@@ -107,12 +116,26 @@ class ClientRegisterForm(FlaskForm):
 
 # Create trainer register form class
 class TrainerRegisterForm(FlaskForm):
+    def validate_password(form,field):
+        password=field.data
+        if len(password) < 8:
+            raise ValidationError("Password must be at least 8 character long.")
+        if not any(char.isdigit() for char in password):
+            raise ValidationError("Password must contain at least one number")
+        if not any(char in '!@#$%^&*()_-+=[{]}\|;:"<,>.?/' for char in password):
+            raise ValidationError("Password must contain at least one special character")
+        
+    def validate_confirm_password(self, confirm_password):
+        if self.password.data != self.confirm_password.data:
+            raise ValidationError('Passwords must match.')
+
+
     first_name = StringField("First Name", validators=[InputRequired(), Length(max=30)])
     surname = StringField("Surname", validators=[InputRequired(), Length(max=30)])
     address = StringField("Address", validators=[InputRequired(), Length(max=50)])
     email = StringField("Email", validators=[InputRequired(), Email(), Length(max=30), validate_email])
-    password = PasswordField("Password", validators=[InputRequired(), Length(min=4, max=20)])
-    confirm_password = PasswordField("Password", validators=[InputRequired(), Length(min=4, max=20)])
+    password = PasswordField("Password", validators=[InputRequired(), Length(min=4, max=20), validate_password, validate_confirm_password])
+    confirm_password = PasswordField("Confirm Password", validators=[InputRequired(), Length(min=4, max=20)])
     specialization = StringField("Specialization", validators=[Length(max=50)])
 
     # Submit button
@@ -132,6 +155,7 @@ def home():
 def login():
 
     form = Login()
+    user_info = {}
     # If the form is submitted and valid
     if form.validate_on_submit():
         # Get the entered email from the form
@@ -144,12 +168,14 @@ def login():
         if client or trainer:
         # Get the password from the form
             password = form.password.data
-
+        
         # Check if the entered password matches the password in the database
         if (client and bcrypt.check_password_hash(client.password, password)) or (trainer and bcrypt.check_password_hash(trainer.password, password)):
             # Log the user in and redirect to appropiate landing page based on user type
             if client:
                 login_user(client)
+                session["user_email"] = client.email
+                session["user_name"] = (f"{client.first_name} {client.surname}")
                 return redirect(url_for("client_dashboard"))
             elif trainer:
                 login_user(trainer)
@@ -157,6 +183,20 @@ def login():
 
         # If no user is found or the password doesn't match
         form.email.errors.append("Invalid Email/Password")
+
+        if client:
+
+            user_info = {
+            "name": f"{client.firstname} {client.surname}",
+            "email": client.email
+            }
+    
+        if trainer:
+            user_info = {
+                "name": f"{trainer.firstname} {trainer.surname}",
+                "email": trainer.email
+                }
+
 
     return render_template("login.html", form=form)
 
@@ -180,6 +220,10 @@ def client_signup():
                 app.logger.error(e)
                 flash("An error occurred while registering. Please try again later")
             db.session.rollback()
+        except ValidationError as e:
+            flash(str(e))
+            db.session.rollback()
+
 
     return render_template("client_signup.html", form=form)
 
@@ -191,7 +235,8 @@ def trainer_signup():
     if form.validate_on_submit():
         try:
             hashed_password = bcrypt.generate_password_hash(form.password.data)
-            trainer = Trainer(trainer_id=form.trainer_id.data, first_name=form.first_name.data, surname=form.surname.data, address=form.address.data, email=form.email.data, password=hashed_password, specialization=form.specialization.data)
+            trainer = Trainer(first_name=form.first_name.data, surname=form.surname.data, address=form.address.data, email=form.email.data, password=hashed_password, specialization=form.specialization.data)
+            trainer_id = trainer.trainer_id()
             db.session.add(trainer)
             db.session.commit()
             return redirect(url_for('login'))
@@ -199,6 +244,10 @@ def trainer_signup():
             if "UNIQUE constraint failed" in str(e):
                 flash("An error occurred while registering. Please try again later")
             db.session.rollback()
+        except ValidationError as e:
+            flash(str(e))
+            db.session.rollback()
+        
 
     return render_template("trainer_signup.html", form=form)
 
@@ -217,6 +266,23 @@ def client_dashboard():
 def logout():
     logout_user()
     return redirect(url_for("login"))
+
+@app.route("/client_profile", methods=["GET", "POST"])
+@login_required
+def client_profile():
+    user_info = {
+        "name": f"{current_user.first_name} {current_user.surname}",
+        "email": current_user.email
+    }
+    return render_template("client_profile.html", user_info=user_info)
+
+@app.route("/trainer_list", methods=["GET", "POST"])
+@login_required
+def trainer_list():
+    trainers = Trainer.query.all()
+
+    return render_template("trainer_list.html", trainers=trainers)
+
 
 @login_manager.user_loader
 def load_user(user_id):
